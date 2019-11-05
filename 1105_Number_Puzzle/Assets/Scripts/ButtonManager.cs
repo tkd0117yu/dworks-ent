@@ -6,22 +6,16 @@ using System;
 //ボタンを配置するクラス
 public class ButtonManager : MonoBehaviour
 {
-	[SerializeField]
-	private const int BUTTON_ELEMENT_COUNT_HORIZONTAL = 5;    //横のボタンの配置の大きさ
-	[SerializeField]
-	private const int BUTTON_ELEMENT_COUNT_VERTICAL = 5;    //縦のボタンの配置の大きさ
+	//定数
+	private const int BUTTON_ELEMENT_COUNT_HORIZONTAL = 5;		//横のボタンの配置の大きさ
+	private const int BUTTON_ELEMENT_COUNT_VERTICAL = 5;		//縦のボタンの配置の大きさ
+	private const int BUTTON_OBJECT_SIZE = 64;                  //ボタンのサイズの1辺の大きさ
 
-	private const int BUTTON_OBJECT_SIZE = 64;          //パのサイズの1辺の大きさ
-
-	[SerializeField]
-	private int[,] button_data_array_ = new int[BUTTON_ELEMENT_COUNT_HORIZONTAL, BUTTON_ELEMENT_COUNT_VERTICAL];  //ボタンのデータの配列
-
-	public bool random_arrangement_ = true;  //ボタンをランダムに配置するフラグ
-
-	public ButtonList original_buttonList_;         //オリジナルのボタンリスト
-	public ButtonProcess original_buttonProcess_;   //オリジナルのボタンのButtonProcess.css
-	private ButtonList now_game_buttonList_;        //現在のゲームののボタンリスト
-	public GameManager game_manager_;               //GameManager.css
+	//ボタンのデータの配列
+	private ButtonProcess[,] button_process_array_ = new ButtonProcess[BUTTON_ELEMENT_COUNT_HORIZONTAL, BUTTON_ELEMENT_COUNT_VERTICAL];  
+	
+	public ButtonProcess original_buttonProcess_;   //ボタン原本のButtonProcess.css
+	public GameManager game_manager_;               //GameManager
 
 	void Start()
 	{
@@ -29,42 +23,24 @@ public class ButtonManager : MonoBehaviour
 
 	void Update()
 	{
-		//debug
-		if (Input.GetKeyDown(KeyCode.Space))
-		{
-			SetArrangement();
-		}
 	}
 
 	//ボタンを再配置する関数
-	void SetArrangement()
+	public void SetArrangement()
 	{
-
 		int elements_content = 0;       //中身一時保管用
 		string content_display = "";    //中身表示用
-
-		game_manager_.ResetNextTarge();
-
-		//新しいボタンの親を生成
-		if (now_game_buttonList_ != null)
-		{
-			now_game_buttonList_.RestartGame();
-		}
-
-		now_game_buttonList_ = Instantiate(
-			original_buttonList_,
-			original_buttonList_.gameObject.transform.position,
-			original_buttonList_.gameObject.transform.rotation,
-			original_buttonList_.gameObject.transform.root
-			);
-
-
+		
 		//初期化
 		for (int verticall_size = 0; verticall_size < BUTTON_ELEMENT_COUNT_VERTICAL; verticall_size++)
 		{
 			for (int horizontal_size = 0; horizontal_size < BUTTON_ELEMENT_COUNT_HORIZONTAL; horizontal_size++)
 			{
-				button_data_array_[verticall_size, horizontal_size] = 0;
+				if(button_process_array_[verticall_size, horizontal_size]!=null)
+				{
+					Destroy(button_process_array_[verticall_size, horizontal_size].gameObject);
+					button_process_array_[verticall_size, horizontal_size] = null;
+				}
 			}
 		}
 
@@ -74,14 +50,15 @@ public class ButtonManager : MonoBehaviour
 			for (int horizontal_size = 0; horizontal_size < BUTTON_ELEMENT_COUNT_HORIZONTAL; horizontal_size++)
 			{
 				//ランダムな配置の使用
-				if (random_arrangement_)
+				if (game_manager_.random_arrangement_)
 				{
 					int freeze_dodge_ = 0;  //フリーズ回避用
 
 					//乱数生成と重複チェック
 					do
 					{
-						elements_content = UnityEngine.Random.Range(1, BUTTON_ELEMENT_COUNT_VERTICAL * BUTTON_ELEMENT_COUNT_HORIZONTAL + 1);
+						//0~縦*横のサイズ内で乱数生成
+						elements_content = UnityEngine.Random.Range(0, BUTTON_ELEMENT_COUNT_VERTICAL * BUTTON_ELEMENT_COUNT_HORIZONTAL);
 
 						freeze_dodge_++;
 						if (freeze_dodge_ > 1000)
@@ -98,18 +75,15 @@ public class ButtonManager : MonoBehaviour
 				}
 
 				//ボタンの生成
-				GenerationButton(verticall_size, horizontal_size, elements_content, now_game_buttonList_.gameObject);
+				button_process_array_[verticall_size, horizontal_size] = GenerationButton(verticall_size, horizontal_size, elements_content);
 
 				//番号の保存
-				button_data_array_[verticall_size, horizontal_size] = elements_content;
+				button_process_array_[verticall_size, horizontal_size].number_ = elements_content;
 				content_display += "[" + elements_content.ToString("D2") + "]";
 			}
 			content_display += "\r\n";
 
 		}
-
-		//リストをアクティブ化
-		now_game_buttonList_.gameObject.SetActive(true);
 
 		//配列の中身を表示
 		Debug.Log(content_display);
@@ -125,9 +99,12 @@ public class ButtonManager : MonoBehaviour
 		{
 			for (int horizontal_size = 0; horizontal_size < BUTTON_ELEMENT_COUNT_HORIZONTAL; horizontal_size++)
 			{
-				if (button_data_array_[verticall_size, horizontal_size] == search_number)
+				if (button_process_array_[verticall_size, horizontal_size] != null)
 				{
-					has_duplicate = true;
+					if (button_process_array_[verticall_size, horizontal_size].number_ == search_number)
+					{
+						has_duplicate = true;
+					}
 				}
 			}
 		}
@@ -138,21 +115,20 @@ public class ButtonManager : MonoBehaviour
 	//引　数：1.int :縦の要素番号
 	//		：2.int :横の要素番号
 	//		：3.int :ボタンの番号
-	private void GenerationButton(int coordinate_vertical, int coordinate_horizontal, int button_Number, GameObject parent_button)
+	private ButtonProcess GenerationButton(int coordinate_vertical, int coordinate_horizontal, int button_Number)
 	{
-
 		//生成先の座標
 		Vector2 generating_coordinate = new Vector2(
-			(float)(coordinate_horizontal * BUTTON_OBJECT_SIZE) - (float)BUTTON_ELEMENT_COUNT_HORIZONTAL / 2.0f,
-			(float)(BUTTON_ELEMENT_COUNT_VERTICAL * BUTTON_OBJECT_SIZE - coordinate_vertical * BUTTON_OBJECT_SIZE) - (float)BUTTON_ELEMENT_COUNT_VERTICAL / 2.0f
-			);
+			coordinate_horizontal * BUTTON_OBJECT_SIZE - BUTTON_ELEMENT_COUNT_HORIZONTAL / 2 * BUTTON_OBJECT_SIZE,
+			(BUTTON_ELEMENT_COUNT_VERTICAL -1) * BUTTON_OBJECT_SIZE - coordinate_vertical * BUTTON_OBJECT_SIZE - BUTTON_ELEMENT_COUNT_VERTICAL / 2 * BUTTON_OBJECT_SIZE
+		);
 
 		//ボタンの複製、配置
 		ButtonProcess generated_object = Instantiate(
 			original_buttonProcess_, 
 			original_buttonProcess_.gameObject.transform.position,
 			original_buttonProcess_.gameObject.transform.rotation,
-			parent_button.transform
+			original_buttonProcess_.gameObject.transform.root.gameObject.transform
 		);
 		generated_object.transform.localPosition = generating_coordinate;
 
@@ -160,18 +136,28 @@ public class ButtonManager : MonoBehaviour
 		generated_object.gameObject.SetActive(true);
 
 		//ボタンのデータの保存
-		generated_object.SetButtonData(button_Number, ClickCallback);
+		generated_object.SetButtonData(button_Number, game_manager_.ClickCallback);
 
+		return generated_object;
 	}
 
-	//ボタンがクリックされた時の処理
-	//引　数：1.int			:ボタンの番号
-	//		：2.gameobject	:呼び出し先のボタンのオブジェクト
-	public void ClickCallback(int button_number, GameObject gameObject)
+	//ボタンをデリートする処理
+	//引　数：int		:ボタンの番号
+	public void DestroyButton(int button_number)
 	{
-		if (game_manager_.ClickNextTarge(button_number))
+		for (int verticall_size = 0; verticall_size < BUTTON_ELEMENT_COUNT_VERTICAL; verticall_size++)
 		{
-			Destroy(gameObject);
+			for (int horizontal_size = 0; horizontal_size < BUTTON_ELEMENT_COUNT_HORIZONTAL; horizontal_size++)
+			{
+				if (button_process_array_[verticall_size, horizontal_size] != null)
+				{
+					if (button_process_array_[verticall_size, horizontal_size].number_ == button_number)
+					{
+						Destroy(button_process_array_[verticall_size, horizontal_size].gameObject);
+						button_process_array_[verticall_size, horizontal_size] = null;
+					}
+				}
+			}
 		}
 	}
 }

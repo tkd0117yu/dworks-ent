@@ -5,36 +5,45 @@ using System;
 
 public class GameManager : MonoBehaviour
 {
+	public bool random_arrangement_ = true;		//ボタンをランダムに配置するフラグ
 
+	private int next_target;					//次のターゲットの数字
 
-	private int next_target;    //次のターゲットの数字
+	public ButtonManager button_manager_;       //ButtonManager
+
+	//縦と横のサイズ指定
+	//[Range(2, 8)] public int horizontal_size_ = 5;
+	//[Range(2, 8)] public int vertical_size_ = 5;
 
 	void Start()
 	{
-		
 	}
 
 	void Update()
 	{
-
+		//debug
+		if (Input.GetKeyDown(KeyCode.Space))
+		{
+			RestartGame();
+		}
 	}
 
 	//ボタンがクリックされた時の処理
-	//引　数：int  :クリックされたボタンの数値
-	//戻り値：bool :目的の番号の場合true
-	public bool ClickNextTarge(int number)
+	//引　数：int		:ボタンの番号
+	public void ClickCallback(int button_number)
 	{
-		bool result = false;
-		if(number == next_target)
+		if (button_number == next_target)
 		{
-			result = true;
 			next_target++;
+			button_manager_.DestroyButton(button_number);
 		}
-		return result;
 	}
 
-	public void ResetNextTarge()
+	//ゲームをリスタートする時の処理
+	public void RestartGame()
 	{
-		next_target = 1;
+		Debug.Log("リスタート");
+		button_manager_.SetArrangement();
+		next_target = 0;
 	}
 }
